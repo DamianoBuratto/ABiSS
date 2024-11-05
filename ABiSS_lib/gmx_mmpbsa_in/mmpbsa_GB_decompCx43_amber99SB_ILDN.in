@@ -1,0 +1,24 @@
+Sample input file for Alanine scanning
+#This input file is meant to show only that gmx_MMPBSA works. Although, we tried to use the input files as recommended in the
+#Amber manual, some parameters have been changed to perform more expensive calculations in a reasonable amount of time. Feel free to change the parameters
+#according to what is better for your system.
+
+&general
+sys_name="NonLinear_GB",
+startframe=1,
+endframe=9999999,
+forcefields="oldff/leaprc.ff99SBildn"
+/
+# igb=1 -> The Hawkins, Cramer, Truhlar pairwise GB model (GB-HCT, https://pubs.acs.org/doi/10.1021/jp961710n)
+# igb=5 -> Modified GB model 2 developed by A. Onufriev, D. Bashford and D.A. Case (GB-OBC2, https://onlinelibrary.wiley.com/doi/10.1002/prot.20033)
+&gb
+igb=5, saltcon=0.150,
+/
+#make sure to include at least one residue from both the receptor
+#and ligand in the print_res mask of the &decomp section.
+#this requirement is automatically fulfilled when using the within keyword.
+#http://archive.ambermd.org/201308/0075.html
+&decomp
+idecomp=2, dec_verbose=0,
+print_res="B/55 H/29-34,74,101-108,183"
+/

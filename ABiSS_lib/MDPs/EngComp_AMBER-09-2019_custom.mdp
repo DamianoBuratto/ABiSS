@@ -1,0 +1,91 @@
+
+; date 23 March 2021
+
+;----------------------------------------------------
+; VARIOUS PREPROCESSING OPTIONS
+;----------------------------------------------------
+title                    = NPT simulation (constant number, pressure and temperature)
+
+define          	= -DKEY_define
+
+;----------------------------------------------------
+; RUN CONTROL PARAMETERS
+;----------------------------------------------------
+integrator               = md
+dt                       = 0.002		; [ps]
+nsteps                   = KEY_nsteps		; ovvero -> 1.5ns (150frames)
+
+;----------------------------------------------------
+; OUTPUT CONTROL OPTIONS
+;----------------------------------------------------
+nstxout                  = KEY_nstouts 	        ; scrive ogni [10ps]steps (coordinates)
+nstvout                  = 0                    ; No output, except for last frame (velocities)
+nstfout                  = 0                    ; No output, except for last frame (forces)
+nstlog                   = 250000                ; Write every step to the log 
+nstenergy                = 250000                 ; Write energies at every step
+nstxtcout                = KEY_nstouts                ; Write a compressed trajectory every 10ps
+xtc_precision            = KEY_nstouts
+xtc-grps                 = System
+
+;----------------------------------------------------
+; Selection of energy groups 
+;----------------------------------------------------
+;	energygrps               = Protein Non-Protein
+
+;----------------------------------------------------
+; NEIGHBORSEARCHING PARAMETERS
+;----------------------------------------------------
+nstlist		= 20		; Frequency to update the neighbor list and long range forces
+ns_type		= grid		; Method to determine neighbor list (simple, grid)
+rlist		= 1.0		; Cut-off for making neighbor list (short range forces)
+pbc             = xyz
+
+cutoff-scheme = Verlet
+
+;----------------------------------------------------
+; OPTIONS FOR ELECTROSTATICS AND VdW
+;----------------------------------------------------
+coulombtype              = PME				; ?
+coulomb-modifier	 = Potential-shift-Verlet	; it is (nearly) free with verlet cutoff-scheme
+rcoulomb                 = 1.2				; distance for the Coulomb cut-off
+fourierspacing		 = 0.1
+pme-order		 = 4
+ewald-rtol		 = 1e-6
+
+vdw-modifier		 = Potential-shift-Verlet	; it is (nearly) free with verlet cutoff-scheme
+rvdw                     = 1.2				; ?
+optimize_fft		 = yes				; Calculate the optimal FFT plan for the grid at startup.
+
+;----------------------------------------------------
+; LONG-RANGE DISPERSION CORRECTION
+;----------------------------------------------------
+DispCorr	 = EnerPres
+
+
+;----------------------------------------------------
+; TEMPERATURE COUPLING  
+;----------------------------------------------------
+tcoupl                   = v-rescale			; Temperature coupling using velocity rescaling with a stochastic term (JCP 126, 014101)
+tc-grps                  = Protein Non-Protein		; groups to couple separately to temperature bath
+tau_t                    = 0.1 0.1			; [ps] time constant for coupling (one for each group in tc-grps)
+ref_t                    = 300 300			; [k] reference temperature for coupling (one for each group in tc-grps)
+
+;----------------------------------------------------
+; CONSTRAINTS (BONDS) 
+;----------------------------------------------------
+constraints		 = hbonds			; Convert the bonds with H-atoms to constraints
+constraint-algorithm	 = LINCS			; SHAKE
+
+;----------------------------------------------------
+; PRESSURE COUPLING    
+;----------------------------------------------------
+pcoupl                  = KEY_pcoupl			; Berendsen -> Weak coupling. Exponential relaxation pressure coupling with time constant tau-p [ps]
+pcoupltype		= isotropic				; Pressure coupling which is isotropic in the x and y direction, but different 
+refcoord_scaling        = all					; the reference coordinates are scaled with the scaling matrix of the pressure coupling
+tau_p			= 2.0					; time constant for coupling
+ref_p			= 1.0					; reference pressure for coupling
+								; in the z direction. 6 values are needed for xx, yy, zz, xy/yx, xz/zx and  
+								; yz/zy components, respectively.
+compressibility		= 4.5e-5				; for water at 1atm and 300K is 4.5e-5[bar−1 ]
+
+

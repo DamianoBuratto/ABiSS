@@ -1,0 +1,37 @@
+Sample input file for Alanine scanning
+#This input file is meant to show only that gmx_MMPBSA works. Although, we tried to use the input files as recommended in the
+#Amber manual, some parameters have been changed to perform more expensive calculations in a reasonable amount of time. 
+#Feel free to change the parameters according to what is better for your system.
+#
+#
+# Latest change 11 Jul 2024
+
+&general
+sys_name="Linear_PB",
+startframe=1,
+endframe=9999999,
+forcefields="oldff/leaprc.ff99SBildn"
+temperature          = 310                             # 298.15
+
+/
+&pb
+radiopt              = 0,                              #(radiopt=1) Use optimized radii? (DEFAULT=1; with topology will be set to 0)
+istrng               = 0.15,                            #(istrng=0.0) Ionic strength (M)
+###
+scale                = 2.0,                             # 1/scale = grid spacing for the finite difference solver (default = 1/2 Å; DEFAULT=2.0)
+linit                = 1000,                            # Number of SCF iterations. At least 10K for solvopt>=3 (DEFAULT=1000)
+nsnba                = 1,                               # Sets how often atom-based pairlist is generated. (DEFAULT=1) For molecular dynamics simulations, a value of 5 is recommended.
+npbgrid              = 1,                               # Sets how often the finite-difference grid is regenerated (suggested 100 for MD; DEFAULT=1)
+maxsph               = 400,                             # Approximate number of dots to represent the maximum atomic solvent accessible surface (DEFAULT=400)
+
+
+inp                  = 1,                               # Nonpolar solvation method (MMPBSA.py def=2, gmx_MMPBSA def=1; DEFAULT=1)
+cavity_surften       = 0.0378,                          # Surface tension (DEFAULT)
+cavity_offset        = -0.5692,                         # Offset for nonpolar solvation calc (DEFAULT)
+
+
+/
+# check these threads
+# http://archive.ambermd.org/201203/0191.html
+# http://archive.ambermd.org/201610/0114.html
+# for more info on NLPB

@@ -1,0 +1,108 @@
+;====================================================
+; Energy minimization for FEP
+; similar to 'Free Energy of Solvation' tutorial Justin A. Lemkul, Ph.D.
+;====================================================
+
+;----------------------------------------------------
+; RUN CONTROL & MINIMIZATION
+;----------------------------------------------------
+define                 	= -DFLEXIBLE
+integrator             	= steep
+nsteps       		= KEY_nsteps
+emtol                  	= 100
+emstep                 	= 0.01
+nstcomm                	= 100
+niter			= 20			;
+nbfgscorr		= 10			;
+
+;----------------------------------------------------
+; OUTPUT CONTROL
+;----------------------------------------------------
+nstxout                  = 500	        	; scrive ogni [100ps]steps (coordinates)
+nstvout                  = 0			; No output, except for last frame (velocities)
+nstfout                  = 0			; No output, except for last frame (forces)
+nstlog                   = 500			; Write every step to the log 
+nstenergy                = 500			; Write energies at every step
+nstxtcout                = 500			; Write a compressed trajectory every 100ps
+xtc_precision            = 500
+xtc-grps                 = System
+
+;----------------------------------------------------
+; constrain the starting configuration
+;----------------------------------------------------
+continuation             = no
+
+;----------------------------------------------------
+; NEIGHBOR SEARCHING
+;----------------------------------------------------
+cutoff-scheme 	= Verlet
+nstlist		= 1				; Frequency to update the neighbor list and long range forces
+ns_type		= grid				; Method to determine neighbor list (simple, grid)
+rlist		= 1.0				; (1.2 on the tutorial) Cut-off for making neighbor list (short range forces)
+pbc             = xyz
+
+;----------------------------------------------------
+; BONDS
+;----------------------------------------------------
+constraints		= hbonds			; Convert the bonds with H-atoms to constraints
+constraint-algorithm	= LINCS				; SHAKE
+lincs-order		= 12				;
+
+;----------------------------------------------------
+; ELECTROSTATICS and VDW
+;----------------------------------------------------
+coulombtype             = PME				; ?
+coulomb-modifier	= Potential-shift-Verlet	; it is (nearly) free with verlet cutoff-scheme
+rcoulomb                = 1.0				; (1.2 on the tutorial) distance for the Coulomb cut-off
+vdw-modifier		= Potential-shift-Verlet	; it is (nearly) free with verlet cutoff-scheme
+rvdw                    = 1.0				; (1.2 on the tutorial) ?
+rvdw-switch		= 1.0
+optimize_fft		= yes				; Calculate the optimal FFT plan for the grid at startup.
+
+DispCorr		= EnerPres
+; Spacing for the PME/PPPM FFT grid
+fourierspacing		= 0.12				;
+; EWALD/PME/PPPM parameters
+pme_order		= 6				;
+ewald_rtol		= 1e-06				;
+epsilon_surface		= 0				;
+;----------------------------------------------------
+; TEMPERATURE & PRESSURE COUPL
+;----------------------------------------------------
+Tcoupl                 = no
+Pcoupl                 = no
+gen-vel                = no
+
+;----------------------------------------------------
+; Adaptive Resolution Simulation
+;----------------------------------------------------
+; feature removed from gromacs
+adress                 	= no
+
+;----------------------------------------------------
+; Pull code
+;----------------------------------------------------
+pull			= no
+
+;----------------------------------------------------
+; FREE ENERGY CALCULATIONS
+;----------------------------------------------------
+free-energy             = yes
+couple-moltype		= KEY_couple_moltype
+couple-lambda0		= KEY_couple_lambda0
+couple-lambda1		= KEY_couple_lambda1
+couple-intramol         = yes
+separate-dhdl-file      = yes
+sc-coul			= KEY_sc_coul
+sc-alpha                = 0.5
+sc-power                = 1
+sc-sigma		= 0.3
+init-lambda-state       = 0
+fep-lambdas		= KEY_fep_lambdas
+bonded-lambdas		= KEY_bonded_lambdas
+coul-lambdas		= KEY_coul_lambdas
+vdw-lambdas		= KEY_vdw_lambdas
+nstdhdl                 = 100
+calc-lambda-neighbors   = 1
+
+

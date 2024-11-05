@@ -1,0 +1,76 @@
+Sample input file for Alanine scanning
+#This input file is meant to show only that gmx_MMPBSA works. Although, we tried to use the input files as recommended in the
+#Amber manual, some parameters have been changed to perform more expensive calculations in a reasonable amount of time. Feel free to change the parameters
+#according to what is better for your system.
+
+&general
+sys_name             = "Linear_PB",
+startframe           = 1,
+interval             = 1,
+endframe             = 9999999,
+forcefields          = "oldff/leaprc.ff99SBildn"       # "oldff/leaprc.ff99SB,leaprc.gaff"
+temperature          = 300                             # 298.15
+/
+&pb
+
+radiopt              = 0,                              #(radiopt=1) Use optimized radii?
+istrng               = 0.15,                            #(istrng=0.0) Ionic strength (M)
+
+### list from DEFAULT
+scale                = 2.0,                             # 1/scale = grid spacing for the finite difference solver (default = 1/2 Å)
+linit                = 1000,                            # Number of SCF iterations. At least 10K for solvopt>=3
+nsnba                = 1,                               # Sets how often atom-based pairlist is generated. (DEFAULT 1) For molecular dynamics simulations, a value of 5 is recommended.
+npbgrid              = 100,                               # Sets how often the finite-difference grid is regenerated (suggested 100 for MD)
+maxsph               = 400,                             # Approximate number of dots to represent the maximum atomic solvent accessible surface
+
+# DEFAULT
+inp                  = 2,                               # Nonpolar solvation method (MMPBSA.py def=2, gmx_MMPBSA def=1)
+cavity_surften       = 0.0378,                          # Surface tension
+cavity_offset        = -0.5692,                         # Offset for nonpolar solvation calc
+
+fillratio            = 4.0,                             # Ratio between the longest dimension of the rectangular finite-difference grid and that of the solute
+fscale               = 8,                               # Set the ratio between the coarse and fine grid spacings in an electrostatic focussing calculation
+
+##
+smoothopt            = 1,                               # Set up dielectric values for finite-difference grid edges that are located across the solute/solvent dielectric boundary
+ipb                  = 2,                               # Dielectric model for PB
+sander_apbs          = 0,                               # Use sander.APBS?
+indi                 = 1.0,                             # Internal dielectric constant
+exdi                 = 80.0,                            # External dielectric constant
+emem                 = 4.0,                             # Membrane dielectric constant
+prbrad               = 1.4,                             # Probe radius (1.4 or 1.6)
+iprob                = 2.0,                             # Mobile ion probe radius (Angstroms) for ion accessible surface used to define the Stern layer
+sasopt               = 0,                               # Molecular surface in PB implict model
+arcres               = 0.25,                            # The resolution (Å) to compute solvent accessible arcs
+npbopt               = 0,                               # Use NonLinear PB solver?
+solvopt              = 1,                               # Select iterative solver
+accept               = 0.001,                           # Sets the iteration convergence criterion (relative to the initial residue)
+nbuffer              = 0.0,                             # Sets how far away (in grid units) the boundary of the finite difference grid is away from the solute surface
+nfocus               = 2,                               # Electrostatic focusing calculation (2 is the max)
+bcopt                = 5,                               # Boundary condition option
+eneopt               = 2,                               # Compute electrostatic energy and forces
+frcopt               = 0,                               # Output for computing electrostatic forces
+scalec               = 0,                               # Option to compute reaction field energy and forces
+cutfd                = 5.0,                             # Cutoff for finite-difference interactions
+cutnb                = 0.0,                             # Cutoff for nonbonded interations
+decompopt            = 2,                               # Option to select different decomposition schemes when INP = 2
+use_rmin             = 1,                               # The option to set up van der Waals radii
+sprob                = 0.557,                           # Solvent probe radius for SASA used to compute the dispersion term
+vprob                = 1.3,                             # Solvent probe radius for molecular volume (the volume enclosed by SASA)
+rhow_effect          = 1.129,                           # Effective water density used in the non-polar dispersion term calculation
+use_sav              = 1,                               # Use molecular volume (the volume enclosed by SASA) for cavity term calculation
+maxarcdot            = 1500,                            # Number of dots used to store arc dots per atom (1500 means automatically determine..)
+npbverb              = 1                                # Option to turn on verbose mode
+# MEMBRANE OPTs
+memopt               = 0,                               # Use PB optimization for membrane
+mprob                = 2.7,                             # Membrane probe radius in Å
+mthick               = 40.0,                            # Membrane thickness
+mctrdz               = 0.0,                             # Distance to offset membrane in Z direction
+poretype             = 1,                               # Use exclusion region for channel proteins
+##
+
+/
+# check these threads
+# http://archive.ambermd.org/201203/0191.html
+# http://archive.ambermd.org/201610/0114.html
+# for more info on NLPB
