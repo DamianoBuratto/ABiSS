@@ -1,8 +1,0 @@
-# TEST input file
-receptorFRAG="12"
-ABchains = "1"
-ResiduePool_list = ALA ARG ASN ASP GLN GLU ILE LYS PHE PRO
-#Merge string for the Complex
-mergeC=y\nn\ny\nn\ny\nn\ny\nn\ny\nn\ny\nn\n
-  
-       
