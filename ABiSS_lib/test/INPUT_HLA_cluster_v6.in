@@ -1,0 +1,55 @@
+# TEST input file
+SystemName="HLA_biAB"
+Complex_file_name="HLA_BiAB_protein_50ns.pdb"
+receptorFRAG="2"
+ABchains="2"
+# mergeFragments="-merge"
+# mergeC="y\nn\ny\nn\ny\nn\ny\nn\ny\nn\ny\nn\n"
+# mergeR="y\nn\ny\nn\ny\nn\ny\nn\ny\nn\ny\n"
+# mergeL=""
+POSRES="_posres"
+# POSRES_RESIDUES="37 39 41 75 77 79 170 172 174 209 211 213"
+TargetResidueList="28:H 29:H 30:H 31:H 32:H 52:H 54:H 55:H 56:H 57:H 98:H 100:H 102:H 105:H 93:L 94:L 95:L"
+
+EnergyFunction="12 3"
+Metropolis_Temp="1.5"
+Metropolis_Temp_cap="3"
+metropolis_correction="True"
+# keep_hydration="-kh"
+
+EnergyCalculation="gmxMMPBSA"
+# mmpbsa_inFILE="mmpbsa_GB_amber99SB_ILDN.in"
+mmpbsa_inFILE="mmpbsa_LinearPB_amber99SB_ILDN.in"
+# use_decomp_as_weights="True"
+
+GPATH="/public/home/damiano/Programs/miniconda3/pkgs/gromacs-4.6.7-0.1.0-py35_1/gromacs/bin"
+CONDA_activate_path="/public/home/damiano/Programs/miniconda3/bin"
+CONDA_gmxmmpbsa_name="gmxMMPBSA_1.6.2"
+CONDA_modeller_name="modeller"
+# source_GMX="/public/software/apps/gromacs/2022.2/bin/GMXRC.bash"
+source_GMX="/public/software/apps/gromacs/2023.2/bin/GMXRC.bash"
+cluster="IQB"
+
+# editconf_opt="-d 1.0 -bt cubic -princ"
+# editconf_opt="-d 1.1 -bt triclinic -c"
+# editconf_opt2="-translate 0 0 -1"
+editconf_opt="-d 1.2 -bt triclinic -princ"
+
+# ForceFieldNUM="6"
+ForceField="amber99sb-ildn"
+# NP=8
+RunningNum_PerSystem="7"
+MaxMutant="30"
+
+#### Total ProductionMD of 5ns
+KEY_nsteps_MD="2500000"
+#### Save every 20ps -> 250 frames
+KEY_nstouts_MD="10000"
+#### Start computing BE after 2000ps -> 250 - 100 frames
+startingFrameGMXPBSA="2000"
+#
+##KEY_SA_temp=280 380 380 280
+##KEY_SA_time=0 60 80 130
+#
+
+
