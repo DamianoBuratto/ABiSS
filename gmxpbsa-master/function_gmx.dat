@@ -1,0 +1,691 @@
+
+echo -e "\t > LOADED function_gmx.dat"
+
+#*************************************************
+#		TOPOLOGY
+#*************************************************
+function read_topology {
+	local _itp=$1
+
+	local itp=$(awk -v Var=$_itp '{ if($1==Var) print $2}' ${INPUT_FILE});
+
+	eval $_itp="'$itp'"
+
+	if [ -z "$itp" ]; then echo -e "$1 variable is unset!!! "; exit; fi
+	control=`echo $itp | awk '{N=split($0,v," "); print N}'`
+	if [ $control -gt 1 ]; then echo -e "\n WARNING!! Multiple files are assigned to the $1 variable. It is ok if there are more files describing the topology of the protein \n" | tee -a REPORTFILE0; fi
+}
+
+
+
+function read_topology2 {
+	local _itp=$1
+	local _itpcheck=$2
+
+	local itp=$(awk -v Var=$_itp '{ if($1==Var) print $2}' ${INPUT_FILE});
+
+	eval $_itp="'$itp'";
+
+	if [ -z "$itp" ]; then
+		eval $_itpcheck="'NO'";
+	else
+		control=`echo $itp | awk '{N=split($0,v," "); print N}'`;
+		if [ $control -gt 1 ]; then echo -e "\n WARNING!! Multiple files are assigned to the $1 variable. It is ok if there are more files describing the topology of the protein \n" | tee -a REPORTFILE0; fi
+		eval $_itpcheck="'OK'";
+	fi
+}
+
+
+
+function topology {
+
+	local _fileProt=$1
+	local _fileLig=$2
+	local _nameProt=$3
+	local _nameLig=$4
+	local _nameComp=$5
+	local wat_mol=$6
+
+	#create topology file for protein, ligand and complex. For each one this function is going to delete
+	cp topol.top topol_$_nameComp.top; cp topol.top topol_$_nameProt.top; cp topol.top topol_$_nameLig.top
+
+	#read the protein_itp stuff. It is possible to have more then one protein itp file (e.g. if there are more chains)
+	#find the number and name of the itp protein files.
+	N_ProtFiles=`echo $_fileProt | awk '{N=split($0,ProtFiles," "); print N}'`
+	P=`echo $_fileProt | awk '{N=split($0,v," ");  for(i=1;i<=N;i++) printf v[i]"\t"}'`
+	# for each protein.itp
+	for((i=1;i<=$N_ProtFiles; i++))
+	do
+		#read name and lines indicating the protein under the [moleculetype] section.
+		ProtFiles[$i]=$( echo -e $P| awk -v count=$i '{print $count}')
+		nr_prot[$i]=$( echo $(( $(grep -n "moleculetype" ${ProtFiles[$i]} | cut -d: -f1 ) + 2 )))
+		keywordProt[$i]=$( echo $( sed -n ${nr_prot[$i]}'p' ${ProtFiles[$i]} |awk '{print $1}' ) )
+	done
+
+	#read the ligand_itp stuff
+	##read name and lines indicating the ligand under the [moleculetype] section.
+	nr_lig=$( echo $(( $(grep -n "moleculetype" $_fileLig | cut -d: -f1 ) + 2 )))
+	keywordLig=$( echo $(sed -n $nr_lig'p' $_fileLig | awk '{print $1}') )
+
+	#read the section [molecules] of the files *.top.
+	nr=$( echo $(( $(grep -n "\[\ molecules\ \]" topol_$_nameComp.top | cut -d: -f1 )  )))
+	max_r=$( wc -l  topol_$_nameComp.top | awk '{print $1}')
+
+	for((i=$nr+1; i<=$max_r; i++)); do
+		keyword=$( echo $( sed -n $i'p' topol_$_nameComp.top |awk '{print $1}' ) )
+		for((j=1;j<=$N_ProtFiles;j++))
+			do
+				#if [ "$keyword" == "${keywordProt[$j]}" ]
+				if [ `echo $keyword | tr [:upper:] [:lower:]` = `echo ${keywordProt[$j]} | tr [:upper:] [:lower:]` ]
+				then
+					sed -i -e $i's/'$keyword'/prot@@@'$keyword'/g' topol_$_nameComp.top
+					sed -i -e $i's/'$keyword'/prot@@@'$keyword'/g' topol_$_nameProt.top
+					sed -i -e $i's/'$keyword'/prot@@@'$keyword'/g' topol_$_nameLig.top
+				fi
+			done
+	done
+
+	#adds ';' in front to the molculetype's keywords that are useless in each file
+	for((i=$nr+1; i<=$max_r; i++)); do
+		keyword=$( echo $( sed -n $i'p' topol_$_nameComp.top |awk '{print $1}' ) )
+		if [[ "$keyword" == [* ]]
+		then
+			break
+		fi
+
+		if [ "$keyword" ]
+		then
+			if [[ "$keyword" != prot@@@* ]]
+			then
+				if [ "$keyword" == SOL ]; then
+					if [ ${wat_mol} -gt 0 ]; then
+						sed -i -e $i's/.*SOL.*/SOL      '${wat_mol}'/g' topol_$_nameProt.top
+						sed -i -e $i's/.*SOL.*/SOL      '${wat_mol}'/g' topol_$_nameComp.top
+					else
+						sed -i -e $i's/'$keyword'/\;'$keyword'/g' topol_$_nameProt.top
+						sed -i -e $i's/'$keyword'/\;'$keyword'/g' topol_$_nameComp.top
+					fi
+				else
+					sed -i -e $i's/'$keyword'/\;'$keyword'/g' topol_$_nameProt.top
+					#if [ "$keyword" != "$keywordLig" ]
+					if [ `echo $keyword | tr [:upper:] [:lower:]` != `echo $keywordLig | tr [:upper:] [:lower:]` ]
+					then
+						sed -i -e $i's/'$keyword'/\;'$keyword'/g' topol_$_nameComp.top
+					fi
+				fi
+			fi
+
+			#if [ "$keyword" != "$keywordLig" ]
+			if [ `echo $keyword | tr [:upper:] [:lower:]` != `echo $keywordLig | tr [:upper:] [:lower:]` ]
+			then
+				sed -i -e $i's/'$keyword'/\;'$keyword'/g' topol_$_nameLig.top
+			fi
+
+
+		else
+			continue
+		fi
+	done
+
+	sed -i -e 's/prot@@@/''/g' topol_$_nameComp.top
+	sed -i -e 's/prot@@@/''/g' topol_$_nameProt.top
+	sed -i -e 's/prot@@@/''/g' topol_$_nameLig.top
+
+}
+
+
+
+function topology2 {
+
+	local _fileProt=$1
+	local _nameComp=$2
+
+	#create topology file for protein, ligand and complex. For each one this function is going to delete
+	cp topol.top topol_$_nameComp.top;
+
+	#read the protein_itp stuff. It is possible to have more then one protein itp file (e.g. if there are more chains)
+	N_ProtFiles=`echo $_fileProt | awk '{N=split($0,ProtFiles," "); print N}'`
+	P=`echo $_fileProt | awk '{N=split($0,v," ");  for(i=1;i<=N;i++) printf v[i]"\t"}'`
+	for((i=1;i<=$N_ProtFiles; i++))
+	do
+		ProtFiles[$i]=$( echo -e $P| awk -v count=$i '{print $count}')
+		nr_prot[$i]=$( echo $(( $(grep -n "moleculetype" ${ProtFiles[$i]} | cut -d: -f1 ) + 2 )))
+		keywordProt[$i]=$( echo $( sed -n ${nr_prot[$i]}'p' ${ProtFiles[$i]} |awk '{print $1}' ) )
+	done
+
+	#read the section [molecules] of the files *.top.
+	nr=$( echo $(( $(grep -n "\[\ molecules\ \]" topol_$_nameComp.top | cut -d: -f1 )  )))
+	max_r=$( wc -l  topol_$_nameComp.top | awk '{print $1}')
+
+	for((i=$nr+1; i<=$max_r; i++)); do
+		keyword=$( echo $( sed -n $i'p' topol_$_nameComp.top |awk '{print $1}' ) )
+			for((j=1;j<=$N_ProtFiles;j++))
+			do
+				#if [ "$keyword" == "${keywordProt[$j]}" ]
+				if [ `echo $keyword | tr [:upper:] [:lower:]` = `echo ${keywordProt[$j]} | tr [:upper:] [:lower:]` ]
+				then
+					sed -i -e $i's/'$keyword'/prot@@@'$keyword'/g' topol_$_nameComp.top
+				fi
+			done
+	done
+
+	#adds ';' in front to the molculetype's keywords that are useless in each file
+	for((i=$nr+1; i<=$max_r; i++)); do
+		keyword=$( echo $( sed -n $i'p' topol_$_nameComp.top |awk '{print $1}' ) )
+		if [[ "$keyword" == [* ]]
+		then
+			break
+		fi
+
+		if [ "$keyword" ]
+		then
+			if [[ "$keyword" != prot@@@* ]]
+			then
+				sed -i -e $i's/'$keyword'/\;'$keyword'/g' topol_$_nameComp.top
+			fi
+		else
+			continue
+		fi
+	done
+
+	sed -i -e 's/prot@@@/''/g' topol_$_nameComp.top
+
+}
+
+
+
+#*************************************************
+#EM
+#*************************************************
+function add_WaterIons {
+#e.g. add_WaterIons starting.gro resulting.gro starting.top resulting.top
+	# GLOBAL VARIABLES/FILES
+	# $GENBOX; $grompp
+	# Mm.mdp;
+
+	#LOCAL VARIABLES
+	local _startingSystem=$1
+	local _resultingSystem=$2
+	local _startingTopology=$3
+	local _resultingTopology=$4
+	local _ChargeValue=
+	local _WaterMolecules=
+	local _KNumber=; local _ClNumber=; local _IonsNumber=;
+	local _netCHARGE=; local _NEWnetCHARGE=
+
+	cp $_startingTopology $_resultingTopology
+	$GENBOX -cp ${_startingSystem} -cs spc216.gro -o system_water.gro -p ${_resultingTopology}				&> genbox.out || { echo " something wrong on GENBOX!! exiting..."; exit; }
+
+	# COMPUTE THE NUMBER OF IONS NEEDED IN THE BOX AND ADD THEM TO THE SYSTEM
+	$grompp -f Mm.mdp -c system_water.gro -p ${_resultingTopology} -o system_ions.tpr -maxwarn 1				&> grompp.out || { echo " something wrong on GROMPP!! exiting..."; exit; }
+	_ChargeValue=$( gawk '/System has non-zero total charge/ {  x=$NF; if(x>0){x=x+0.5}else{x=x-0.5}; printf "%2i", x  }' grompp.out )
+	[ "$_ChargeValue" == "" ] && { echo -e "_ChargeValue=\"$_ChargeValue\"!!!!"; exit; }
+	_WaterMolecules=$( gawk '$1 ~ /SOL/ { print $NF }' ${_resultingTopology} )
+	[ "$_WaterMolecules" == "" ] && { echo -e "_WaterMolecules=\"$_WaterMolecules\"!!!!"; exit; }
+	_IonsNumber=$( echo "scale=0; x=(0.599+$_WaterMolecules*0.00271)/1; print x;" | bc -l );		# 150nM of solt
+	_KNumber=$( echo "scale=0; x=($_IonsNumber-1*$_ChargeValue/2)/1; print x;" | bc -l );
+	_ClNumber=$( echo "scale=0; x=($_IonsNumber+1*$_ChargeValue/2)/1; print x;" | bc -l );
+	_netCHARGE=$( echo "scale=0; x=($_KNumber-$_ClNumber+1*$_ChargeValue); print x;" | bc -l );
+	_NEWnetCHARGE="not computed"
+	#echo -e "_ChargeValue=$_ChargeValue _WaterMolecules=$_WaterMolecules _IonsNumber=$_IonsNumber \n_netCHARGE=$_netCHARGE _KNumber=$_KNumber _ClNumber=$_ClNumber _NEWnetCHARGE=$_NEWnetCHARGE"
+	if [ "$_netCHARGE" -ne "0" ]; then
+		echo -e "   >>> WORNING!! check the charge of the system!! (SystemCharge.out) <<<   "
+		_ClNumber=$( echo "scale=0; x=($_ClNumber+1*$_netCHARGE)/1; print x;" | bc -l )
+		_NEWnetCHARGE=$( echo "scale=0; x=($_KNumber-$_ClNumber+1*$_ChargeValue)/1; print x;" | bc -l )
+	fi
+	echo -e "_ChargeValue=$_ChargeValue _WaterMolecules=$_WaterMolecules _IonsNumber=$_IonsNumber \
+		\n_netCHARGE=$_netCHARGE _KNumber=$_KNumber _ClNumber=$_ClNumber _NEWnetCHARGE=$_NEWnetCHARGE" &> SystemCharge.out
+
+	echo -e "keep 0\nr SOL\nkeep 1\n\nq\n" | $MAKE_NDX -f system_water.gro -o index_SOL.ndx 				&> make_ndx.out || { echo " something wrong on MAKE_NDX!! exiting..."; exit; }
+	echo -e "0\n" | $GENION -s system_ions.tpr -n index_SOL.ndx -o ${_resultingSystem} -p ${_resultingTopology} -nn ${_ClNumber} -nname CL -np ${_KNumber} -pname K &> genion.temp || { echo " something wrong on GENION!! exiting..."; exit; }
+	rm index_SOL.ndx
+}
+
+function run_minim_gmx {
+#e.g. run_minim _solv$_count.gro solv_topol_$_molecule.top _solv_EM_$_count.gro
+	#GLOBAL VARIABLE USED:
+	#grompp
+	#mdrun
+	#trjconv
+
+	#LOCAL VARIABLES:
+	local _minim_NAME_steep="minim_steep"
+	local _minim_NAME_cg="minim_cg"
+	local _gro_NAME=$1
+	local _top_NAME=$2
+	local _output_NAME=$3
+
+
+
+	echo "
+;====================================================
+; Energy minimization
+; similar to 'Lysozyme in Water' tutorial Justin A. Lemkul, Ph.D.
+;====================================================
+
+define          = -DFLEXIBLE            ;-DFLEXIBLE
+;====================================================
+; Parameters describing what to do, when to stop and what to save
+;====================================================
+; The following line tell the program the standard locations where to find certain files
+cpp             = /lib/cpp      ; Preprocessor
+
+integrator      = steep                 ; Algorithm (steep = steepest descent minimization)
+emtol           = 1000.0                ; Stop minimization when the maximum force < 1000.0 kJ/mol
+emstep          = 0.01                  ; Minimization step size
+nsteps          = 2000			; Maximum number of (minimization) steps to perform
+
+;====================================================
+; Parameters describing how to find the neighbors of each atom and how to calculate the interactions
+;====================================================
+nstlist         = 1                     ; Frequency to update the neighbor list and long range forces
+cutoff-scheme   = Verlet                ; Buffered neighbor searching
+ns_type         = grid                  ; Method to determine neighbor list (simple, grid)
+coulombtype     = PME                   ; Treatment of long range electrostatic interactions
+rcoulomb        = 1.0                   ; Short-range electrostatic cut-off
+rvdw            = 1.0                   ; Short-range Van der Waals cut-off
+pbc             = xyz                   ; Periodic Boundary Conditions in all 3 dimensions
+" > ${_minim_NAME_steep}.mdp
+
+	echo "
+;====================================================
+; Energy minimization
+; similar to 'Lysozyme in Water' tutorial Justin A. Lemkul, Ph.D.
+;====================================================
+
+define          = -DFLEXIBLE            ;-DFLEXIBLE
+;====================================================
+; Parameters describing what to do, when to stop and what to save
+;====================================================
+; The following line tell the program the standard locations where to find certain files
+cpp             = /lib/cpp      ; Preprocessor
+
+integrator      = cg			; Algorithm (steep = steepest descent minimization)
+emtol           = 1000.0		; Stop minimization when the maximum force < 1000.0 kJ/mol
+emstep          = 0.01			; Minimization step size
+nsteps          = 1000			; Maximum number of (minimization) steps to perform
+
+;====================================================
+; Parameters describing how to find the neighbors of each atom and how to calculate the interactions
+;====================================================
+nstlist         = 1                     ; Frequency to update the neighbor list and long range forces
+cutoff-scheme   = Verlet                ; Buffered neighbor searching
+ns_type         = grid                  ; Method to determine neighbor list (simple, grid)
+coulombtype     = PME                   ; Treatment of long range electrostatic interactions
+rcoulomb        = 1.0                   ; Short-range electrostatic cut-off
+rvdw            = 1.0                   ; Short-range Van der Waals cut-off
+pbc             = xyz                   ; Periodic Boundary Conditions in all 3 dimensions
+" > ${_minim_NAME_cg}.mdp
+
+
+	_gro_NAME="${_gro_NAME%.*}"
+	_top_NAME="${_top_NAME%.*}"
+	_output_NAME="${_output_NAME%.*}"
+
+	#echo -e " \t\t $grompp -f ${_minim_NAME_steep}.mdp -c ${_gro_NAME}.gro -p ${_top_NAME}.top -o ${_gro_NAME}_EM1.tpr"
+	$grompp -f ${_minim_NAME_steep}.mdp -c ${_gro_NAME}.gro -p ${_top_NAME}.top -o ${_gro_NAME}_EM1.tpr 				&> grompp.out || { echo " something wrong on 1st GROMPP!! exiting..."; exit; }
+	$mdrun -s ${_gro_NAME}_EM1.tpr -c ${_gro_NAME}_EM1.gro -v									&> output.temp || { echo " something wrong on 1st MDRUN!! exiting..."; exit; }
+
+	$grompp -f ${_minim_NAME_cg}.mdp -c ${_gro_NAME}_EM1.gro -p ${_top_NAME}.top -o ${_gro_NAME}_EM2.tpr  				&> output.temp || { echo " something wrong on ${run}st GROMPP!! exiting..."; exit; }
+	$mdrun -s ${_gro_NAME}_EM2.tpr -c ${_gro_NAME}_EM2.gro -v									&> output.temp || { echo " something wrong on ${run}st MDRUN!! exiting..."; exit; }
+
+	# Check if the minimization goes well
+	minim_test=$( echo `grep "Norm of force" output.temp | cut -d= -f2` )
+	if [ "$minim_test" == "inf" ]; then
+		echo -e "\t something wrong with the energy minimization. We need your help.."
+		exit;
+	fi
+
+	#mv ${_gro_NAME}_EM2.gro ${_output_NAME}.gro
+	echo -e "Protein\n" | $trjconv -f ${_gro_NAME}_EM2.gro -s ${_gro_NAME}_EM2.tpr -o ${_output_NAME}.gro				&> trjconv.temp || { echo " something wrong on trjconv!! exiting..."; exit; }
+
+
+}
+
+function EnergyMin_n {
+# EnergyMin_n _molecule _count _Gpath _ffield _topology _usetpbcon _editconf _pdb2gmx _grompp _mdrun _mergeSTRING
+	#GLOBAL VARIABLE USED:
+	#tpbconv
+
+	#LOCAL VARIABLES:
+	local _molecule=$1
+	local _count=$2
+	local _Gpath=$3
+	local _ffield=$4
+	local _topology=$5
+	local _usetpbcon=$6
+	local _editconf="$7"
+	local _pdb2gmx="$8"
+	local _grompp="$9"
+	local _mdrun="${10}"
+
+	local _merge=
+	local _mergeSTRING=
+	if [ "${11}" != "" ]; then
+		_merge="-merge interactive"
+		_mergeSTRING="${11}"
+	fi
+
+	local _num_his=
+	local _pdb2gmx_string=
+
+	name=`echo ${_molecule}${_count}`
+	check2 _$name.pdb ../REPORTFILE0
+
+	# PDB2GMX
+	_num_his=$(egrep -c "(HIS     CA)|(HID     CA)|(HIE     CA)|(HIP     CA)|(HSD     CA)|(HSE     CA)|(HSP     CA)|(CA  HIS)|(CA  HID)|(CA  HIE)|(CA  HIP)|(CA  HSD)|(CA  HSE)|(CA  HSP)" _$name.pdb)
+	_pdb2gmx_string="${_ffield}\n"		# The water is already selected with the option -water
+	if [ "${_merge}" == "-merge interactive" ]; then
+		_pdb2gmx_string="${_pdb2gmx_string}${_mergeSTRING}"
+	fi
+	for i in `seq 1 $_num_his`; do
+		_pdb2gmx_string="${_pdb2gmx_string}1\n"
+	done
+	echo "_pdb2gmx_string: ${_pdb2gmx_string}" >>STD_ERR0 2>&1
+	echo -e "${_pdb2gmx_string}" | $_Gpath\/$_pdb2gmx -f _$name.pdb -p topol_$_molecule.top -i posre_$_molecule.itp -o _$name.gro -ignh -water tip3p -his ${_merge} &> pdb2gmx.out \
+     || { echo " something wrong on pdb2gmx in EnergyMin_n!! Bye..."; exit; }
+
+	# EDITCONF
+	check2 _$name.gro ../REPORTFILE0 && $_Gpath\/${_editconf} -f _${name}.gro -o _box${_count}.gro -c -d 1.7 -bt cubic >>STD_ERR0 2>&1 \
+     || { echo " something wrong on editconf in EnergyMin_n!! Bye..."; exit; }
+
+	# NOTE:
+	# I need the $name.tpr for every structure in order to generate the pqr file (next step of gmxpbsa0)
+	check2 _box${_count}.gro ../REPORTFILE0 && $_Gpath\/${_grompp} -f Mm.mdp -c _box${_count}.gro -p topol_${_molecule}.top -o ${name}.tpr -maxwarn 1 >>STD_ERR0 2>&1 \
+     || { echo " something wrong on grompp in EnergyMin_n!! Bye..."; exit; }
+
+	# check2 _$name.gro ../REPORTFILE0 && $_Gpath\/$_grompp -f Mm.mdp -c _$name.gro -p topol_$_molecule.top -o $name.tpr -maxwarn 1 >>STD_ERR0 2>&1 && check2 $name.tpr
+
+	if [ "$_usetpbcon" == "y" ] && [ "$_molecule" == "comp" ]; then
+		echo -e "\t\tComputing Energy with rerun on _box${_count}.gro"
+		check2 ${_molecule}.tpr ../REPORTFILE0 && $_Gpath\/$_mdrun -s ${_molecule}.tpr -deffnm ${name} -rerun _box${_count}.gro >>STD_ERR0 2>&1 \
+       || { echo " something wrong on mdrun in EnergyMin_n!! Bye..."; exit; }
+    check2 $name.log ../REPORTFILE0
+
+		# I need to compute the tpr with the last .gro and .mdp used for coul and LJ energies (it will be used for PBSA)
+		check2 _box${_count}.gro ../REPORTFILE0 && $_Gpath\/${_grompp} -f EngComp.mdp -c _box${_count}.gro -p topol_${_molecule}.top -o ${name}.tpr -maxwarn 1 >>STD_ERR0 2>&1 \
+       || { echo " something wrong on grompp in EnergyMin_n!! Bye..."; exit; }
+
+	elif [ "$_usetpbcon" == "y" ] && ! [ "$_molecule" == "comp" ]; then
+		echo -e "\t\tComputing Energy after running EMin on $name.tpr"
+		add_WaterIons _box${_count}.gro _solv${_count}.gro topol_${_molecule}.top _solv_topol_${_molecule}.top
+		run_minim_gmx _solv${_count}.gro _solv_topol_${_molecule}.top _${_molecule}_EM_${_count}.gro
+		# _solv_EM_${_count}.gro -> _box${_count}.gro
+		check2 ${_molecule}.tpr ../REPORTFILE0 && $_Gpath\/$_mdrun -s ${_molecule}.tpr -deffnm ${name} -rerun _${_molecule}_EM_${_count}.gro >>STD_ERR0 2>&1 \
+       || { echo " something wrong on mdrun in EnergyMin_n!! Bye..."; exit; }
+    check2 $name.log ../REPORTFILE0
+
+		# I need to compute the tpr with the last .gro and .mdp used for coul and LJ energies (it will be used for PBSA)
+		check2 _${_molecule}_EM_${_count}.gro ../REPORTFILE0 && $_Gpath\/$_grompp -f EngComp.mdp -c _${_molecule}_EM_${_count}.gro -p topol_${_molecule}.top -o $name.tpr -maxwarn 1 >>STD_ERR0 2>&1 \
+       || { echo " something wrong on grompp in EnergyMin_n!! Bye..."; exit; }
+		rm *#
+	else
+		echo -e "\t\tRunning EnergyMin_n with EMin on $name.tpr"
+		check2 $name.tpr ../REPORTFILE0 && $_Gpath\/$_mdrun -s $name.tpr -deffnm ${name} -c ${name}.pdb >>STD_ERR0 2>&1 \
+       || { echo " something wrong on mdrun in EnergyMin_n!! Bye..."; exit; }
+    check2 $name.log ../REPORTFILE0
+	fi
+
+	#echo -e "ls $name.log -> "$( ls $name.log )
+	tar cfz GROfiles_$name.tar.gz _$name.gro && rm -f _$name.gro
+	tar cfz PDBfiles1_$name.tar.gz _$name.pdb && rm -f _$name.pdb
+	[ -r $name.pdb ] && { tar cfz PDBfiles_$name.tar.gz $name.pdb; rm -f $name.pdb; }
+	rm -f \#* *.edr *.trr _box*.gro box_dimension.dat
+
+}
+
+function EnergyMin_n_NOcas {
+	# EnergyMin_n_NOcas _molecule _count _Gpath _mdrun
+	local _molecule=$1
+	local _count=$2
+	local _Gpath=$3
+	local _mdrun="$4"
+
+	name=`echo $_molecule$_count`
+
+ 	check2 $_molecule.tpr ../REPORTFILE0 && $_Gpath\/$_mdrun -s $_molecule.tpr -rerun _$name.pdb -deffnm $name >>STD_ERR0 2>&1 && check2 $name.log ../REPORTFILE0
+
+	#tar cfz PDBfiles1_$name.tar.gz _$name.pdb && rm -f _$name.pdb
+	rm -f \#* *.edr *.trr *.gro
+}
+
+
+
+function EnergyMin_y {
+
+	local _molecule=$1
+	local _count=$2
+	local _Gpath=$3
+	local _ffield=$4
+	local _topology=$5
+	local _editconf="$6"
+	local _pdb2gmx="${7}"
+	local _grompp="${8}"
+	local _mdrun="${9}"
+
+	local _merge=
+	local _mergeSTRING=
+	if [ "${10}" != "" ]; then
+		_merge="-merge interactive"
+		_mergeSTRING="${10}"
+	fi
+
+	local _num_his=
+	local _pdb2gmx_string=
+
+	name=`echo $_molecule$_count`
+
+	# PDB2GMX
+	_num_his=$(egrep -c "(HIS     CA)|(HID     CA)|(HIE     CA)|(HIP     CA)|(HSD     CA)|(HSE     CA)|(HSP     CA)|(CA  HIS)|(CA  HID)|(CA  HIE)|(CA  HIP)|(CA  HSD)|(CA  HSE)|(CA  HSP)" _$name.pdb)
+	_pdb2gmx_string="${_ffield}\n"		# The water is already selected with the option -water
+	if [ "${_merge}" == "-merge interactive" ]; then
+		_pdb2gmx_string="${_pdb2gmx_string}${_mergeSTRING}"
+	fi
+	for i in `seq 1 $_num_his`; do
+		_pdb2gmx_string="${_pdb2gmx_string}1\n"
+	done
+	echo "_pdb2gmx_string: ${_pdb2gmx_string}" >>STD_ERR0 2>&1
+	echo -e "${_pdb2gmx_string}" | $_Gpath\/$_pdb2gmx -f _$name.pdb -p topol_$_molecule.top -i posre_$_molecule.itp -o _$name.gro -ignh -water tip3p -his ${_merge} &> pdb2gmx.out \
+     || { echo " something wrong on pdb2gmx in EnergyMin_y!! Bye..."; exit; }
+
+# 	check2 _$name.gro ../REPORTFILE0 && $_Gpath\/$_editconf -f _$name.gro -o _box$_count.gro -c -box $_bX $_bY $_bZ &>>STD_ERR0 \
+#     || { echo " something wrong on editconf in EnergyMin_y!! Bye..."; exit; }
+ 	check2 _$name.gro ../REPORTFILE0 && $_Gpath\/$_editconf -f _$name.gro -o _box$_count.gro -c -d 1.7 -bt cubic >>STD_ERR0 2>&1 \
+     || { echo " something wrong on editconf in EnergyMin_y!! Bye..."; exit; }
+   	check2 _box$_count.gro ../REPORTFILE0 && $_Gpath\/$_grompp -f Mm.mdp -c _box$_count.gro -p topol_$_molecule.top -o $name.tpr -maxwarn 1 >>STD_ERR0 2>&1 \
+       || { echo " something wrong on grompp in EnergyMin_y!! Bye..."; exit; }
+  	check2 $name.tpr ../REPORTFILE0 && $_Gpath\/$_mdrun -s $name.tpr -deffnm $name -c $name.pdb >>STD_ERR0 2>&1 && check2 $name.pdb ../REPORTFILE0 \
+       || { echo " something wrong on mdrun in EnergyMin_y!! Bye..."; exit; }
+
+	tar cfz GROfiles_$name.tar.gz _$name.gro && rm -f _$name.gro
+	tar cfz PDBfiles1_$name.tar.gz _$name.pdb && rm -f _$name.pdb
+	tar cfz PDBfiles_$name.tar.gz $name.pdb && rm -f $name.pdb
+	rm -f \#* *.edr *.trr _box*.gro box_dimension.dat
+}
+
+
+#*************************************************
+#PQR & STRU files
+#*************************************************
+function PDB2PQR {
+ local _comp=$1
+ local _prot=$2
+ local _liga=$3
+ local _count=$4
+ local Gpath=$5
+ local editconf="$6"
+ nameC=`echo $_comp$_count`
+ nameP=`echo $_prot$_count`
+ nameL=`echo $_liga$_count`
+
+ check2 $nameC.tpr ../REPORTFILE0 && $Gpath\/$editconf -f $nameC.tpr -mead $nameC.pqr >>STD_ERR0 2>&1 && tar cfz PDBfiles1_$nameC.tar.gz $nameC.pdb && rm -f $nameC.pdb && check2 $nameC.pqr ../REPORTFILE0
+ check2 $nameP.tpr ../REPORTFILE0 && $Gpath\/$editconf -f $nameP.tpr -mead $nameP.pqr >>STD_ERR0 2>&1 && tar cfz PDBfiles1_$nameP.tar.gz $nameP.pdb && rm -f $nameP.pdb && check2 $nameP.pqr ../REPORTFILE0
+ check2 $nameL.tpr ../REPORTFILE && $Gpath\/$editconf -f $nameL.tpr -mead $nameL.pqr >>STD_ERR0 2>&1 && tar cfz PDBfiles1_$nameL.tar.gz $nameL.pdb && rm -f $nameL.pdb && check2 $nameL.pqr ../REPORTFILE
+
+# let "picO=($_count%23)"
+# if [ $picO -eq 0 ]; then
+  #echo -e "\n "$(date +%H:%M:%S)" \nGenerated the file $nameC.pqr, $nameP.pqr, $nameL.pqr files in $(pwd)..." | tee -a ../REPORTFILE0
+# fi
+}
+
+function generate_STRUfiles {
+	local _counter=$1
+	local _comp=$2
+	local _protein=$3
+	local _ligand=$4
+	if [ -e $_comp$_counter.pqr ] && [ -e $_protein$_counter.pqr ] && [ -e $_ligand$_counter.pqr ] ; then
+		touch stru$_counter.rep
+		echo -e "###################################################### \n This is the report file for the file
+		"$(pwd)"/comp"$_counter".pdb \n calculated by GMXPBSA \n###################################################### \n" > stru$_counter.rep
+ 	else
+		echo -e " \n"$(date +%H:%M:%S)" \n Problems while generating the REP files. Exiting..." | tee -a ../REPORTFILE0
+		exit
+ 	fi
+}
+
+
+
+function generate_STRUfiles_protein {
+	local _counter=$1
+	local _comp=$2
+	if [ -e $_comp$_counter.pqr ]; then
+  	 touch stru$_counter.rep
+  	echo -e "###################################################### \n This is the report file for the file
+	"$(pwd)"/comp"$_counter".pdb \n calculated by GMXPBSA \n###################################################### \n" > stru$_counter.rep
+ 	else
+  	echo -e " \n"$(date +%H:%M:%S)" \n Problems while generating the REP files. Exiting..." | tee -a ../REPORTFILE0
+  	exit
+ 	fi
+}
+
+
+#*************************************************
+#BOX
+#*************************************************
+function find_box {
+	local _fin=$1
+	local _bx=$2
+	local _by=$3
+	local _bz=$4
+
+	bX=0; bY=0; bZ=0;
+	for((i=0; i<$_fin; i++ )); do
+		bx=`tail -1 _comp$i.gro | awk '{print $1}'`
+		by=`tail -1 _comp$i.gro | awk '{print $2}'`
+		bz=`tail -1 _comp$i.gro | awk '{print $3}'`
+		#bx=`grep "CRYST1" _comp$i.pdb | awk '{print $2/10}'`
+		#by=`grep "CRYST1" _comp$i.pdb | awk '{print $3/10}'`
+		#bz=`grep "CRYST1" _comp$i.pdb | awk '{print $4/10}'`
+
+if [ -z $bx ]; then
+	echo -e "\nIn Folder $FoLdeR the box dimensions can not be found. Please check your xtc or set the box dimension manually! Exiting...\n" | tee -a ../REPORTFILE0
+	exit
+fi
+		x=`echo "$bx-$bX"| bc -l`;
+		X=`echo $x| cut -d - -f1`;
+		y=`echo "$by-$bY"| bc -l`;
+		Y=`echo $y| cut -d - -f1`;
+		z=`echo "$bz-$bZ"| bc -l`;
+		Z=`echo $z| cut -d - -f1`;
+
+		if [ $X ]
+		then
+			bX=$bx;
+		fi
+		if [ $Y ]
+		then
+			bY=$by;
+		fi
+		if [ $Z ]
+		then
+			bZ=$bz;
+		fi
+	done
+	bX=`echo "$bX+2"| bc -l | cut -d . -f1`
+	bY=`echo "$bY+2"| bc -l | cut -d . -f1`
+	bZ=`echo "$bZ+2"| bc -l | cut -d . -f1`
+	eval	$_bx="'$bX'"
+	eval	$_by="'$bY'"
+	eval	$_bz="'$bZ'"
+	echo -e $bX "\t" $bY "\t" $bZ > box_dimension.dat
+}
+
+###########################
+#LJ CALCULATION
+###########################
+
+function ReadEnergy {
+#e.g.: ReadEnergy _filename _energy _results
+	local _filename=$1
+	local _energy=$2
+	local _results=$3
+
+	l=$(grep -n "$_energy" $_filename | cut -d: -f1 | tail -1);
+	if [ -z $l ]; then echo -e "\nIn the file $_filename is not present the keyword $_energy, necessary to calculate the energy contributions. Check the calculations relative to the energy minimization. Exiting.."; exit; fi
+	let "l=$l+1";
+	c=`sed  -n '/'$_energy'/{N;p;}' $_filename | tail -n 2 | head -n 1 | awk -v energy="$_energy" '{ for(i=1;i<=NF;i++){if ($i ~ energy) { print i } }}'`
+	VAL=$(sed -n $l\p $_filename | awk -v c="$c" '{print $c}')
+
+	#if ! [[ "$VAL" =~ ^[0-9]+$ ]] -> controla che sia un numero, perche' non riconosce gli esponenziali!
+	if [ -z $VAL ]
+	then
+	#	exec >&2;
+		echo -e "\n ERROR: Variable $_results is empty" | tee -a ../REPORTFILE0 ;
+ 	#	exit 1
+		exit
+	fi
+
+	eval $_results="'$VAL'"
+}
+
+function ReadEnergy_Pot {
+	local _filename=$1
+	local _energy=$2
+	local _results=$3
+
+	l=$(grep -n -e "${_energy}$" -e "${_energy}    " $_filename | cut -d: -f1 | tail -1)
+	if [ -z $l ]; then
+		echo -e "In the file $_filename is not present the keyword $_energy. Check the calculations relative to the energy minimization.";
+	else
+		let "m=$l+1";
+		c=`sed -n $l'p' $_filename | awk -v energy="$_energy" '{ for(i=1;i<=NF;i++){if ($i ~ energy) { print i } }}'`
+
+		VAL=$(sed -n $m'p' $_filename | awk -v c="$c" '{print $c}')
+		#if ! [[ "$VAL" =~ ^[0-9]+$ ]] -> controla che sia un numero, perche' non riconosce gli esponenziali!
+		if [ -z $VAL ]
+		then
+		#	exec >&2;
+			echo -e "Warning: Can not read $_results, errors can occur in the file PotEn.PotEn. This fact will not influence the final results." | tee -a ../REPORTFILE0 ;
+ 		#	exit 1
+			#exit
+		fi
+		eval $_results="'$VAL'"
+	fi
+}
+
+
+function ReadEnergy_special {
+	local _filename=$1
+	local _energy=$2
+	local _results=$3
+
+	l=$(grep -n "$_energy" $_filename | cut -d: -f1 | tail -1);
+	if [ -z $l ]; then
+		eval $_results="X"
+	else
+		let "l=$l+1";
+		c=`sed  -n '/'$_energy'/{N;p;}' $_filename | tail -n 2 | head -n 1 | awk -v energy="$_energy" '{ for(i=1;i<=NF;i++){if ($i ~ energy) { print i } }}'`
+		VAL=$(sed -n $l\p $_filename | awk -v c="$c" '{print $c}')
+
+		#if ! [[ "$VAL" =~ ^[0-9]+$ ]] -> controla che sia un numero, perche' non riconosce gli esponenziali!
+		if [ -z $VAL ]
+		then
+		#	exec >&2;
+			echo -e "\n ERROR: Variable $_results is empty" | tee -a ../REPORTFILE0 ;
+ 		#	exit 1
+			exit
+		fi
+
+		eval $_results="'$VAL'"
+	fi
+}
