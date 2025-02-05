@@ -14,7 +14,7 @@
 
 # ABiSS - Antibody in Silico Selection
 
-**Design**: Damiano Buratto & Francesco Zonta
+**Design**: Damiano Buratto & Francesco Zonta  
 **Author**: Damiano Buratto  
 **Email**: damianoburatto@gmail.com  
 **Version**: 0.6 (August 2023)  
