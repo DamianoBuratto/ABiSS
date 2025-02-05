@@ -14,6 +14,7 @@
 
 # ABiSS - Antibody in Silico Selection
 
+**Design**: Damiano Buratto & Francesco Zonta
 **Author**: Damiano Buratto  
 **Email**: damianoburatto@gmail.com  
 **Version**: 0.6 (August 2023)  
@@ -115,6 +116,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ---
 
 ## Acknowledgements
-ABiSS was developed by Damiano Buratto and Francesco Zonta. The software is based on various computational biology tools, including Gromacs, VMD, Modeller, and Chimera.
+ABiSS was developed by Damiano Buratto and Francesco Zonta with the precious contributions and suggestions from Prof. Zhous's group at IQB, ZJU. 
+The software is based on various computational biology tools, including Gromacs, VMD, Modeller, and Chimera.
 
 
