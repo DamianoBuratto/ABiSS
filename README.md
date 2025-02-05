@@ -40,8 +40,9 @@ Before running ABiSS, ensure you have the following dependencies installed:
 
 - **Gromacs** (for structure file handling and Molecular Dynamics)
 - **VMD** (no GUI - for structure file handling )
-- **Modeller** (to perform mutagenesis)
-- **Python 3.8 or higher**
+- **gmx_MMPBSA** https://valdes-tresanco-ms.github.io/gmx_MMPBSA/dev/installation/  
+- **Modeller** https://salilab.org/modeller/download_installation.html  
+- **Python 3.8 or higher** with Pandas and Numpy
 <!-- **Antechamber** (optional, for force field parameterization) -->
 <!-- **OpenBabel** (optional, but strongly recommended for molecular format conversions) -->
 
