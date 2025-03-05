@@ -3,13 +3,16 @@
 <p align="center">
   <img 
     src="ABiSS_logo.png" 
-    alt="ABiSS Logo:  antibody-antigen going deep into energy well" 
-    width="400" 
+    alt="ABiSS Logo:  Diving to the bottom of the Binding Energy Landscape" 
+    width="380" 
     height="auto" 
   />
 </p>
-
+<div align="center"> 
+  <strong> Diving to the bottom of the Binding Energy Landscape </strong>
+</div>
 <!-- Optional: Add a line break or divider -->
+
 ---
 
 # ABiSS - Antibody in Silico Selection
@@ -32,6 +35,31 @@ ABiSS (Antibody in Silico Selection) is a computational tool designed for the se
 - **Multiple Simulation Support**: The program supports parallel processing for computational efficiency, especially useful for high-throughput simulations on clusters.
 - **Customizable Workflows**: Provides flexibility in configuring the simulation process using a variety of user-defined parameters.
 
+---
+
+## Architecture
+<!-- Centered Architecture picture with Descriptive Alt Text -->
+<p align="center">
+  <img 
+    src="ABiSS_arc.png" 
+    alt="ABiSS architecture" 
+    width="700" 
+    height="auto" 
+  />
+  <br />
+  <em> <strong>Figure 1:</strong> Schematic representation of the computational protocol. </em>
+</p>
+
+ABiSS is designed to systematically optimize antibody binding affinity by iteratively introducing single or double-point mutations within the CDRs, aiming to reach the bottom of the binding energy (BE) landscape, thereby enhancing antibody-antigen interactions. The workflow of ABiSS is outlined in Figure 1 and follows these key steps:
+1.	Mutation: Single or double-point random mutations are introduced at critical positions in the antibody CDRs using Modeller or Scwrl. The pool of critical residues that can be mutated is pre-selected and depends on the specific case.
+2.	Refinement: The mutated antibody undergoes a structural relaxation process followed by Simulated Annealing Molecular Dynamics (SAMD) simulations to ensure convergence to an energy minimum after the introduction of a small perturbation (mutation) in the system.
+3.	Evaluation: Multiple energy-minimized conformations are sampled in parallel through MD simulations. It has been shown that using multiple short simulations (less than 10ns) is an efficient method for reliable configurational sampling[^1]. The binding affinity of the complex is estimated from these trajectories using Molecular Mechanics Poisson-Boltzmann Surface Area (MMPBSA) calculations. MMPBSA provides a fast and reliable way to estimate BE and consistently rank candidates based on BE.
+4.	Structure Update: The Metropolis-Hastings algorithm is used to determine the starting configuration for the next Monte Carlo Markov Chain (MCMC)  iteration. At each iteration, the new configuration can either be Accepted (used as a starting point for the next iteration) or Rejected (the previous configuration is retained). The decision is based on the BE difference between the new and previous configurations, ensuring a progressive improvement in binding affinity while escaping local energy minima by occasionally accepting suboptimal mutations with a controlled probability.
+
+The iteration process continues for a predefined number of cycles or until a threshold number of cumulative mutations is reached, leading to the selection of multiple optimized antibody candidates.
+Multiple instances of ABiSS can be run in parallel to ensure the production of a sufficient amount of high-quality antibody candidates.
+
+[^1]: Buratto D, Wan Y, Shi X, Yang G, Zonta F. *In Silico Maturation of a Nanomolar Antibody against the Human CXCR2*. Biomolecules. 2022;12(9):1285. doi:10.3390/biom12091285 [link](https://www.mdpi.com/2218-273X/12/9/1285)
 ---
 
 ## Requirements
@@ -118,6 +146,8 @@ This project is licensed under the GPL-3.0 License - see the LICENSE file for de
 
 ## Acknowledgements
 ABiSS was developed by Damiano Buratto and Francesco Zonta with the precious contributions and suggestions from Prof. Zhous's group at IQB, ZJU. 
-The software is based on various computational biology tools, including Gromacs, VMD, Modeller, and Chimera.
+The software is based on various computational biology tools, including [Gromacs](https://www.gromacs.org/), [VMD](https://www.ks.uiuc.edu/Research/vmd/), [Modeller](https://salilab.org/modeller/), and [Chimera](https://www.cgl.ucsf.edu/chimera/).
+
+If you use our software, please cite the following paper [paper](https://www.mdpi.com/2218-273X/12/9/1285)
 
 
